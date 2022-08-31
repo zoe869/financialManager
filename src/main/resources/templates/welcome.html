@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Financial Management</title>
+    <meta name="renderer" content="webkit|ie-comp|ie-stand">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport" content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8"/>
+    <meta http-equiv="Cache-Control" content="no-siteapp"/>
+
+    <link rel="stylesheet" href="/static/css/font.css">
+    <link rel="stylesheet" href="/static/css/xadmin.css">
+    <script type="text/javascript" src="/static/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/static/js/echarts.min.js"></script>
+    <script type="text/javascript" src="/static/lib/layui/layui.js" charset="utf-8"></script>
+    <script type="text/javascript" src="/static/js/xadmin.js"></script>
+
+    <style>
+        @media screen and (max-width: 600px) {
+            #chart1, #chart2 {
+                width: 90% !important;
+                margin-left: 5%;
+            }
+        }
+
+        .x-admin-backlog-body {
+            border-radius: 20px;
+            height: 121px;
+        }
+
+        .x-admin-backlog-body h2 {
+            font-weight: 400;
+            font-size: 16px;
+            color: #ADD8E6;
+            padding-bottom: 5px;
+        }
+
+        .x-admin-backlog-body h3 {
+            font-style: normal;
+            font-weight: 400;
+            padding-bottom: 5px;
+            font-size: inherit;
+            color: #009688;
+        }
+
+        .x-admin-backlog-body title {
+            display: block;
+            font-size: 16px;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+<div class="x-body layui-anim layui-anim-up">
+    <blockquote class="layui-elem-quote">Welcome，
+        <span id="role">Member</span>：
+        <span class="x-black" id="username">test</span> ！login time：
+        <span id="date">new Date().pattern("yyyy-MM-dd hh:mm:ss")</span>
+
+        <div id="alert" style="display: none; width:100%; position:relative; white-space:nowrap; overflow:hidden; height:20px;">
+            <i class="layui-icon">&#xe645;</i>
+            <div id="noticeList" style="position:absolute; top:0; height:20px;color: darkgoldenrod;background-color: gainsboro">
+                <span id="alertMessage" name="alertMessage"></span>
+            </div>
+        </div>
+    </blockquote>
+
+    <fieldset class="layui-elem-field" id="lb">
+        <legend>Quicklink</legend>
+        <div class="layui-field-box">
+            <div class="layui-col-md12">
+                <div class="layui-card">
+                    <div class="layui-card-body">
+                        <div class="layui-carousel x-admin-carousel x-admin-backlog" lay-anim="" lay-indicator="inside"
+                             lay-arrow="none" style="width: 100%; height: 150px;">
+                            <div carousel-item="">
+                                <ul class="layui-row layui-col-space10 layui-this" id="leaderBoard">
+                                    <li class="layui-col-xs6 layui-col-sm4" onclick="x_admin_show('Balance Details','income_balance.html','1024px','80%')">
+                                        <a href="javascript:;" class="x-admin-backlog-body" >
+                                            <title >Balance</title>
+                                            <ul>
+
+                                            </ul>
+                                        </a>
+                                    </li>
+                                    <li class="layui-col-xs6 layui-col-sm4" onclick="x_admin_show('Income Details','income_detailsmonth.html','1024px','80%')">
+                                        <a href="javascript:;" class="x-admin-backlog-body" >
+                                            <title >Income in Latest Month</title>
+                                            <ul>
+
+                                            </ul>
+                                        </a>
+                                    </li>
+                                    <li class="layui-col-xs6 layui-col-sm4" onclick="x_admin_show('Spending Details','pay_detailsmonth.html','1024px','80%')">
+                                        <a href="javascript:;" class="x-admin-backlog-body">
+                                            <title>Spending in Latest Month</title>
+                                            <ul>
+
+                                            </ul>
+                                        </a>
+                                    </li>
+
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </fieldset>
+    <fieldset class="layui-elem-field" id="statistics">
+        <legend>Statistics</legend>
+        <div id="chart1" class="layui-col-md12 layui-col-sm12" style="height: 400px;"></div>
+        <div id="chart2" class="layui-col-md12 layui-col-sm12" style="height: 400px;"></div>
+    </fieldset>
+</div>
+
+<script>
+    $(function () {
+        /* -----begin-----加载用户信息-----begin----- */
+        if (parent.sessionUser.roleid == 1) {
+            $("#role").html("Admin");
+            $("#lb").css("display","block");
+            $("#statistics").css("display","block");
+
+        } else if (parent.sessionUser.roleid == 2) {
+            $("#role").html("Host");
+        } else if(parent.sessionUser.roleid == 3){
+            $("#role").html("Member");
+            $("#lb").css("display","none");
+        }
+        $("#username").html(parent.sessionUser.username);
+        //$("#date").html(new Date().pattern("yyyy-MM-dd hh:mm:ss"));
+        /* ----- end -----加载用户信息----- end ----- */
+
+        //加载排行榜
+        showDatasInLeaderBoard();
+
+        //初始化统计图
+        initChart();
+        //显示数据
+        // showDatasInChart();
+
+    });
+    function displayTime(){
+        var elt = document.getElementById("date");
+        var now = new Date();
+        elt.innerHTML  = now.pattern("yyyy-MM-dd HH:mm:ss");
+        setTimeout(displayTime,1000);
+    }
+    window.onload = displayTime;
+    Date.prototype.pattern=function(fmt) {
+        var o = {
+            "M+" : this.getMonth()+1, //月份         
+            "d+" : this.getDate(), //日         
+            "h+" : this.getHours()%12 == 0 ? 12 : this.getHours()%12, //小时         
+            "H+" : this.getHours(), //小时         
+            "m+" : this.getMinutes(), //分         
+            "s+" : this.getSeconds(), //秒         
+            "q+" : Math.floor((this.getMonth()+3)/3), //季度         
+            "S" : this.getMilliseconds() //毫秒         
+        };
+        var week = {
+            "0" : "/u65e5",
+            "1" : "/u4e00",
+            "2" : "/u4e8c",
+            "3" : "/u4e09",
+            "4" : "/u56db",
+            "5" : "/u4e94",
+            "6" : "/u516d"
+        };
+        if(/(y+)/.test(fmt)){
+            fmt=fmt.replace(RegExp.$1, (this.getFullYear()+"").substr(4 - RegExp.$1.length));
+        }
+        if(/(E+)/.test(fmt)){
+            fmt=fmt.replace(RegExp.$1, ((RegExp.$1.length>1) ? (RegExp.$1.length>2 ? "/u661f/u671f" : "/u5468") : "")+week[this.getDay()+""]);
+        }
+        for(var k in o){
+            if(new RegExp("("+ k +")").test(fmt)){
+                fmt = fmt.replace(RegExp.$1, (RegExp.$1.length==1) ? (o[k]) : (("00"+ o[k]).substr((""+ o[k]).length)));
+            }
+        }
+        return fmt;
+    };
+
+    function showDatasInLeaderBoard() {
+        var end=new Date().Format("yyyy-MM-dd HH:mm:ss");
+        var start = new Date(new Date().setMonth(new Date().getMonth() - 1)).Format("yyyy-MM-dd HH:mm:ss");
+
+        //var start=new Date().Format("yyyy-MM-dd HH:mm:ss");//yyyy-MM-dd HH:mm:ss
+        var bill = {
+            "bill.userInfo":parent.sessionUser,
+            "startTime": start,
+            "endTime": end
+        }
+        // console.log(bill)
+        // 异步加载数据
+        $.post('/bills/getBillsToChart', bill, function (res) {
+            if (res.code == 200) {
+                //分析数据，将数据展示在排行榜上
+                analyzeLB123(res.datas)
+                analyzeLB4(res.datas);
+                //统计图
+                setChart1(res.datas);
+                setChart2(res.datas);
+
+                myChart1.hideLoading();
+                myChart2.hideLoading();
+            }
+
+        });
+    }
+
+    // var data = [{
+    //     ouputname :"",
+    //     income: 0,
+    //     pay: 0,
+    //     balance: 0
+    // }];
+    function analyzeLB123(datas) {
+        var datas2 = [];
+        $.each(datas, function (index, item) {
+            var data = {
+                ouputname: item.userInfo.realname,
+                balance: 0,
+                income: item.typeid == 2 ? item.money : 0,
+                pay: item.typeid == 1 ? item.money : 0
+
+            };
+            if (datas2.length == 0) {
+                datas2.push(data);
+            } else {
+                var flag = true;
+                for (var i = 0; i < datas2.length && flag; i++) {
+                    var d = datas2[i];
+                    if (data.ouputname == d.ouputname) {
+                        if (item.typeid == 1) {
+                            d.pay += item.money;
+                        } else if (item.typeid == 2) {
+                            d.income += item.money;
+                        }
+                        flag = false;
+                    }
+                }
+                if (flag) {
+                    datas2.push(data);
+                }
+            }
+            $.each(datas2, function (i, item) {
+                item.balance = item.income - item.pay;
+            })
+
+        });
+        fillHtmlToLB(datas2, 1);
+        fillHtmlToLB(datas2, 2);
+        fillHtmlToLB(datas2, 3);
+    }
+
+    function analyzeLB4(datas) {
+        var datas2 = [];
+        $.each(datas, function (index, item) {
+            if (item.typeid == 1) {
+                var data = {
+                    paywayid: item.payway.id,
+                    ouputname: item.payway.name,
+                    money: item.money,
+                };
+                if (datas2.length == 0) {
+                    datas2.push(data);
+                } else {
+                    var flag = true;
+                    for (var i = 0; i < datas2.length && flag; i++) {
+                        var d = datas2[i];
+                        if (data.paywayid == d.paywayid) {
+                            d.money += data.money;
+                            flag = false;
+                        }
+                    }
+                    if (flag) {
+                        datas2.push(data);
+                    }
+                }
+            }
+        });
+        datas2.sort(function (a, b) {
+            return b.money - a.money
+        })
+        fillHtmlToLB(datas2, 4);
+    }
+
+    function fillHtmlToLB(datas, index) {
+        var $ul = $("#leaderBoard li:nth-child(" + index + ") ul");
+        var moneyMap = new Map();
+        moneyMap.set(1, "balance");
+        moneyMap.set(2, "income");
+        moneyMap.set(3, "pay");
+        moneyMap.set(4, "money");
+        var html = "<li>";
+        if (datas.length > 0) {
+            for (var i = 0; i < datas.length && i < 3; i++) {
+                switch (index) {
+                    case 1:
+                        datas.sort(function (a, b) {
+                            return b.income - a.income;
+                        })
+                        break;
+                    case 2:
+                        datas.sort(function (a, b) {
+                            return b.pay - a.pay;
+                        })
+                        break;
+                    case 3:
+                        datas.sort(function (a, b) {
+                            return b.balance - a.balance;
+                        })
+                        break;
+                    default:
+                }
+                html += (i == 0) ? "<h2>" : "<h3>";
+
+                // html += "    <name>" + datas[i].ouputname + "</name>\n" +
+                //     "    <money style='float: right;'>" + parseFloat(datas[i][moneyMap.get(index)]).toFixed(2) + "€</money>\n";
+
+                html += "<money style='float: right;'>" + parseFloat(datas[i][moneyMap.get(index)]).toFixed(2) + "€</money>\n";
+
+                html += (i == 0) ? "</h2>" : "</h3>";
+            }
+        }
+        html += "</li>";
+        $ul.html(html);
+    }
+
+    function initChart() {
+        // 基于准备好的dom，初始化echarts实例
+        myChart1 = echarts.init(document.getElementById('chart1'));
+        myChart2 = echarts.init(document.getElementById('chart2'));
+        // 指定图表的配置项和数据
+        myChart1.setOption({
+            title: {
+                text: 'Income VS Expenditure',
+                x: 'center',
+                y: 'top'
+            },
+            tooltip: {
+                show: true,
+                trigger: 'item',
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                left: 10,
+                data: ['Income', 'Payment']
+            },
+            series: [
+                {
+                    name: 'Income VS Payment',
+                    type: 'pie',
+                    radius: ['30%', '50%'],
+                    avoidLabelOverlap: false,
+                    label: {
+                        show: false,
+                        position: 'center'
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '30',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    }
+                }
+            ]
+        });
+
+        myChart1.showLoading();
+        myChart2.setOption({
+            title: {
+                text: 'Income VS Expenditure Details',
+                x: 'center',
+                y: 'top'
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            legend: {
+                // orient: 'vertical',
+                data: ['income', 'payment', 'balance'],
+                x: 'left'
+            },
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            },
+            toolbox: {
+                feature: {
+                    saveAsImage: {}
+                }
+            },
+            // dataZoom: [
+            //     {
+            //         type: 'inside'
+            //     }
+            // ],
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: []
+            },
+            yAxis: {
+                type: 'value'
+            },
+            series: [
+                {
+                    name:'income',
+                    type:'bar',
+                    itemStyle: {
+                        barBorderRadius: [5, 5, 5, 5],// 圆角（左上、右上、右下、左下）
+                        // color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+                        //     {color: '#2FAEF2', offset: 0},
+                        //     {color: '#1CD8A8', offset: 1}
+                        // ]), // 渐变
+                        color: "#ed9473",
+                    },
+                    data:[],
+                },
+                {
+                    name:'payment',
+                    type:'bar',
+                    itemStyle: {
+                        barBorderRadius: [5, 5, 5, 5],// 圆角（左上、右上、右下、左下）
+                        // color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+                        //     {color: '#c23531', offset: 0},
+                        //     {color: '#caba26', offset: 1}
+                        // ]), // 渐变
+                        color: "#2fa1dd"
+                    },
+                    data:[]
+                },
+                {
+                    name:'balance',
+                    type:'line',
+                    areaStyle: {},
+                    itemStyle: {
+                        barBorderRadius: [5, 5, 5, 5],// 圆角（左上、右上、右下、左下）
+                        color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+                            {color: '#e0dec6', offset: 0},
+                            {color: '#a1a1dc', offset: 1}
+                        ]), // 渐变
+                    },
+                    smooth: true, // 线条转折有弧度
+                    data:[]
+                }
+            ],
+            animationDuration: function (idx) {
+                // 越往后的数据延迟越大
+                return idx * 300;
+            }
+        });
+        myChart2.showLoading();
+    }
+
+
+    // 填入myChart1数据
+    function setChart1(datas) {
+        var paySum = 0;
+        var incomeSum = 0;
+        $.each(datas, function (index, item) {
+            if (item.typeid == 1) {
+                paySum += parseFloat(item.money);
+            } else if (item.typeid == 2) {
+                incomeSum += parseFloat(item.money);
+            }
+        });
+        myChart1.hideLoading();
+        myChart1.setOption({
+            series: [{
+                // 根据名字对应到相应的系列
+                name: 'Income and expenditure',
+                data: [
+                    {value: incomeSum.toFixed(2), name: 'income', selected: true},
+                    {value: paySum.toFixed(2), name: 'payment'},
+                ]
+            }]
+        });
+    }
+
+    // 填入myChart2数据
+    function setChart2(datas) {
+
+        var x = [], payVal = new Array(30), incomeVal = new Array(30), balanceVal = new Array(30);
+        var now = new Date();
+        var next = new Date().setMonth(now.getMonth() + 1);
+        var between = (next - now) / (1000 * 60 * 60 * 24);
+        for (var i = 0; i < between; i++) {
+            payVal[i] = 0;
+            incomeVal[i] = 0, balanceVal[i] = 0;
+            var day = (i + 1) < 10 ? "0" + (i + 1) : (i + 1);
+            var month = now.getMonth() + 1 < 10 ? "0" + (now.getMonth() + 1) : (now.getMonth() + 1);
+            x.push(month + "-" + day);
+            var dateStr = now.getFullYear() + "-" + month + "-" + day;
+            var incomeSum = 0, paySum = 0, balanceSum = 0;
+            $.each(datas, function (index, item) {
+                if (item.time.split(" ")[0] == dateStr) {
+                    if (item.typeid == 1) {
+                        paySum += parseFloat(item.money);
+                    } else if (item.typeid == 2) {
+                        incomeSum += parseFloat(item.money);
+                    }
+                }
+            });
+            balanceSum += incomeSum - paySum;
+            payVal[i] = paySum;
+            incomeVal[i] = incomeSum;
+            balanceVal[i] = balanceSum;
+        }
+        // console.log(payVal);
+        // console.log(incomeVal);
+        myChart2.hideLoading();
+        myChart2.setOption({
+            xAxis: {
+                data: x
+            },
+            series: [
+                // 根据名字对应到相应的系列
+                {
+                    name: 'payment',
+                    data: payVal
+                },
+                {
+                    name: 'income',
+                    data: incomeVal
+                },
+                {
+                    name: 'balance',
+                    data: balanceVal
+                }
+            ]
+        });
+    }
+
+    $(function(){
+        var budget = {}
+        $.post('/budgets/alerts', budget, function (res) {
+            if (res.code == 200) {
+                var str=""
+                //分析数据，将数据展示在排行榜上
+                $("#alert").css("display","block");
+                $.each(res.datas, function (i, item) {
+                    str+=item.message+"."
+                    $("#alertMessage").html(str)
+                })
+            }
+
+        });
+
+        $("#alert").textScroll();//aaa为最外层div的Id  也可写Class  如：$(".aaa") 此处aaa为class名
+    });
+
+    $.fn.textScroll=function(){
+        var p = $(this),  c = p.children(), speed=2000; //值越大速度越小
+        var cw = c.width(),pw=p.width();
+        var t = (cw / 100) * speed;
+        var f = null, t1 = 0;
+        function ani(tm) {
+            counttime();
+            c.animate({ left: -cw }, tm, "linear", function () {  c.css({ left: pw });  clearInterval(f);  t1 = 0;  t=((cw+pw)/100)*speed;  ani(t);
+            });
+        }
+        function counttime() {
+            f = setInterval(function () {
+                t1 += 10;  }, 10);
+        }
+        p.on({  mouseenter: function () {
+                c.stop(false, false);
+                clearInterval(f);
+                console.log(t1);
+            },  mouseleave: function () {
+                ani(t - t1);
+                console.log(t1);
+            }  });
+        ani(t);  }
+
+
+    Date.prototype.Format = function (fmt) {
+        var o = {
+            "M+": this.getMonth() + 1, //月份
+            "d+": this.getDate(), //日
+            "H+": this.getHours(), //小时
+            "m+": this.getMinutes(), //分
+            "s+": this.getSeconds(), //秒
+            "q+": Math.floor((this.getMonth() + 3) / 3), //季度
+            "S": this.getMilliseconds() //毫秒
+        };
+        if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+        for (var k in o)
+            if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+        return fmt;
+    }
+</script>
+</body>
+</html>

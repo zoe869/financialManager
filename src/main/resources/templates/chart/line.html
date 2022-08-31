@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Statistics Report</title>
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport"
+          content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8"/>
+    <link rel="stylesheet" href="/static/css/font.css">
+    <link rel="stylesheet" href="/static/css/xadmin.css">
+    <script type="text/javascript" src="/static/js/index.js"></script>
+    <script type="text/javascript" src="/static/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/static/lib/layui/layui.js" charset="utf-8"></script>
+    <script type="text/javascript" src="/static/js/xadmin.js"></script>
+    <script type="text/javascript" src="/static/js/echarts.min.js"></script>
+</head>
+
+<body>
+<div class="x-nav">
+      <span class="layui-breadcrumb">
+        <a href="index">Dashboard</a>
+        <a href="">Statistic Report</a>
+        <a>
+          <cite>Statistic Report</cite></a>
+      </span>
+    <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right"
+       href="javascript:location.reload();" title="refresh">
+        <i class="layui-icon" style="line-height:30px">ဂ</i></a>
+</div>
+<div class="x-body layui-anim layui-anim-up">
+    <div class="layui-row">
+        <form class="layui-form layui-col-md12 x-so">
+            <input class="layui-input" placeholder="Start time" id="start" autocomplete="off">
+            <input class="layui-input" placeholder="End time" id="end" autocomplete="off">
+            <input type="text" placeholder="Title" id="title" autocomplete="off" class="layui-input">
+            <div class="layui-input-inline">
+                <select id="payway">
+                    <option value="-1">Choose payment method</option>
+                </select>
+            </div>
+            <button class="layui-btn" type="button" lay-submit="" lay-filter="search" onclick="getBills()">
+                <i class="layui-icon">&#xe615;</i>search
+            </button>
+            <button class="layui-btn layui-btn-primary" type="reset">
+                <i class="layui-icon">&#xe640;</i>reset
+            </button>
+        </form>
+    </div>
+    <fieldset class="layui-elem-field" style="height: 1000px; ">
+        <div id="chart1"   class="layui-col-md6 layui-col-sm12" style="height: 400px;"></div>
+        <div id="chart2" class="layui-col-md12 layui-col-sm12"  style="height: 600px;"></div>
+    </fieldset>
+</div>
+
+<script>
+    getAllPayways();
+    mPageSize = 10000;
+    $(function () {
+        layui.use('laydate', function () {
+            var laydate = layui.laydate;
+            //执行一个laydate实例
+            laydate.render({
+                elem: '#start', //指定元素
+                max: 0
+            });
+            laydate.render({
+                elem: '#end', //指定元素
+                max: 0
+            });
+        });
+        initChart();
+        getBills();
+    });
+
+    function getBills() {
+
+        $("#start").val()==""? $("#start").val() : {};
+        $("#end").val()==""? $("#end").val() : {};
+
+        var bill = {
+            "startTime": $("#start").val(),
+            "endTime": $("#end").val(),
+            "realname": $("#realname").val(),
+            "title": $("#title").val(),
+            "payway": $("#payway").val() == -1 ? null : $("#payway").val(),
+        }
+        // console.log(bill)
+        // 异步加载数据
+        $.post('/bills/getBillsToChart',bill, function (res) {
+            if (res.code == 200){
+                    setChart1(res.datas);
+                    setChart2(res.datas);
+
+            } else {
+                myChart1.hideLoading();
+                myChart2.hideLoading();
+            }
+
+        });
+    }
+
+    function initChart() {
+        // 基于准备好的dom，初始化echarts实例
+        myChart1 = echarts.init(document.getElementById('chart1'));
+        myChart2 = echarts.init(document.getElementById('chart2'));
+        // 指定图表的配置项和数据
+        myChart1.setOption({
+            tooltip: {
+                show: true,
+                trigger: 'item',
+                formatter: '{a} <br/>{b}: {c} ({d}%)'
+            },
+            legend: {
+                orient: 'vertical',
+                left: 10,
+                data: ['Income', 'Payment']
+            },
+            series: [
+                {
+                    name: 'Income & Payment(Latest Month)',
+                    type: 'pie',
+                    radius: ['30%', '50%'],
+                    avoidLabelOverlap: false,
+                    label: {
+                        show: false,
+                        position: 'center'
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '30',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    }
+                }
+            ]
+        });
+
+        myChart1.showLoading();
+
+        myChart2.setOption({
+            title : {
+                text: 'Income VS Payment',
+                x: 'center',
+                y: 'bottom'
+            },
+            tooltip: {
+                trigger: 'axis'
+            },
+            legend: {
+                data:['Income','Payment','Balance'],
+                right: '5%',
+                top: 10,
+            },
+            // dataZoom: [
+            //     {
+            //         type: 'inside',
+            //         start: 60,
+            //         end: 70
+            //     }
+            // ],
+            grid: {
+                left: '3%',
+                right: '4%',
+                bottom: '3%',
+                containLabel: true
+            },
+            toolbox: {
+                feature: {
+                    saveAsImage: {},
+                }
+            },
+            xAxis: {
+                type: 'category',
+                boundaryGap: false,
+                data: []
+            },
+            yAxis: {
+                type: 'value'
+            },
+            series: [
+                {
+                    name:'Income',
+                    type:'bar',
+                    itemStyle: {
+                        barBorderRadius: [5, 5, 5, 5],// 圆角（左上、右上、右下、左下）
+                        // color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+                        //     {color: '#2FAEF2', offset: 0},
+                        //     {color: '#1CD8A8', offset: 1}
+                        // ]), // 渐变
+                        color: "#ed9473",
+                    },
+                    data:[],
+                },
+                {
+                    name:'Payment',
+                    type:'bar',
+                    itemStyle: {
+                        barBorderRadius: [5, 5, 5, 5],// 圆角（左上、右上、右下、左下）
+                        // color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+                        //     {color: '#c23531', offset: 0},
+                        //     {color: '#caba26', offset: 1}
+                        // ]), // 渐变
+                        color: "#2fa1dd"
+                    },
+                    data:[]
+                },
+                {
+                    name:'Balance',
+                    type:'line',
+                    areaStyle: {},
+                    itemStyle: {
+                        barBorderRadius: [5, 5, 5, 5],// 圆角（左上、右上、右下、左下）
+                        color: new echarts.graphic.LinearGradient(0, 1, 0, 0, [
+                            {color: '#e0dec6', offset: 0},
+                            {color: '#a1a1dc', offset: 1}
+                        ]), // 渐变
+                    },
+                    smooth: true, // 线条转折有弧度
+                    data:[]
+                }
+            ],
+            animationDuration: function (idx) {
+                // 越往后的数据延迟越大
+                return idx * 300;
+            }
+        });
+        myChart2.showLoading();
+    }
+
+    function setChart1(datas){
+        var paySum = 0;
+        var incomeSum = 0;
+        $.each(datas,function (index,item) {
+            if(item.typeid == 1){
+                paySum += parseFloat(item.money);
+            }else if (item.typeid == 2) {
+                incomeSum += parseFloat(item.money);
+            }
+        });
+        myChart1.hideLoading();
+        myChart1.setOption({
+            series: [{
+                // 根据名字对应到相应的系列
+                name: 'Income & Payment(Latest Month)',
+                data: [
+                    {value:incomeSum.toFixed(2), name:'Income', selected: true},
+                    {value:paySum.toFixed(2), name:'Payment'},
+                ],
+            }]
+        });
+    }
+
+
+    function setChart2(datas) {
+
+        var x = [], payVal = new Array(30), incomeVal = new Array(30), netIncomeVal = new Array(30);
+
+        var defaultStart = new Date(new Date().setMonth(new Date().getMonth() - 1)).Format("yyyy-MM-dd HH:mm:ss");
+        var defaultEnd=new Date().Format("yyyy-MM-dd HH:mm:ss");
+        var start = $("#start").val()==''?defaultStart:$("#start").val();
+        var end = $("#end").val()==''?defaultEnd:$("#end").val();
+
+        var between = start==''||end==''?0:daysBetween(end,start);
+        for (var i = 0; i<= between; i++){
+            payVal[i]=0; incomeVal[i]=0, netIncomeVal[i]=0;
+            var dateStr = dateAdd(start,i);
+            x.push(dateStr);
+            var incomeSum=0, paySum = 0, netIncomeSum = 0;
+            $.each(datas,function (index,item) {
+                if(item.time.split(" ")[0] == dateStr){
+                    if (item.typeid == 1) {
+                        paySum += parseFloat(item.money);
+                    } else if (item.typeid == 2) {
+                        incomeSum += parseFloat(item.money);
+                    }
+                }
+            });
+            netIncomeSum += incomeSum - paySum;
+            payVal[i] = paySum;
+            incomeVal[i] = incomeSum;
+            netIncomeVal[i] = netIncomeSum;
+        }
+        // console.log(payVal);
+        // console.log(incomeVal);
+        myChart2.hideLoading();
+        myChart2.setOption({
+            xAxis: {
+                data: x
+            },
+            series: [
+                // 根据名字对应到相应的系列
+                {
+                    name:'Payment',
+                    data: payVal
+                },
+                {
+                    name:'Income',
+                    data: incomeVal
+                },
+                {
+                    name:'Balance',
+                    data: netIncomeVal
+                }
+            ]
+        });
+    }
+    Date.prototype.Format = function (fmt) {
+        var o = {
+            "M+": this.getMonth() + 1, //月份
+            "d+": this.getDate(), //日
+            "H+": this.getHours(), //小时
+            "m+": this.getMinutes(), //分
+            "s+": this.getSeconds(), //秒
+            "q+": Math.floor((this.getMonth() + 3) / 3), //季度
+            "S": this.getMilliseconds() //毫秒
+        };
+        if (/(y+)/.test(fmt)) fmt = fmt.replace(RegExp.$1, (this.getFullYear() + "").substr(4 - RegExp.$1.length));
+        for (var k in o)
+            if (new RegExp("(" + k + ")").test(fmt)) fmt = fmt.replace(RegExp.$1, (RegExp.$1.length == 1) ? (o[k]) : (("00" + o[k]).substr(("" + o[k]).length)));
+        return fmt;
+    }
+
+</script>

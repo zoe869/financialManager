@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>滚动公告栏</title>
+    <script type="text/javascript" src="/static/js/jquery.min.js"></script>
+    <style type="text/css">
+        body{padding: 0;margin:0;background-color:#f9f9f9}
+        .ul1{list-style: none;margin: 0}
+        li{padding: 5px;}
+    </style>
+</head>
+<body>
+
+<div id="alert" style="width:100%; position:relative; white-space:nowrap; overflow:hidden; height:20px;">
+    <div id="noticeList" style="position:absolute; top:0; height:20px;color: darkgoldenrod;background-color: gainsboro">
+        <span style="alignment: right">jQuery文字横向滚动jQuery文字横向滚动jQuery文字横向滚动jQuery文字横向滚动jQuery文字横向滚动jQuery文字横向滚动jQuery文字横向滚动jQuery文字横向滚动jQuery文字横向滚动</span>
+    </div>
+</div>
+</body>
+
+<script type="text/javascript">
+
+    function getAllbudget() {
+        var budget = {
+            "type": $("#type").val(),
+            "status": "0",
+            "time": $("#time").val(),
+            "endDate": $("#endDate").val(),
+            "title": $("#title").val() == -1 ? null : $("#payway").val()
+        }
+        // console.log(bill);
+        $.post("/getBudgets", budget, function (res) {
+            // console.log(res);
+            if (res.code == 200) {
+                if (res.data.totalElements == 0) {
+                    layer.msg(res.msg);
+                }
+                $("#num").text(res.data.totalElements);
+                fillTable(res.data.content, (pageNo - 1) * mPageSize);
+                layui.use('laypage', function () {
+                    var laypage = layui.laypage;
+
+                    //执行一个laypage实例
+                    laypage.render({
+                        elem: 'pager', //注意，这里的 test1 是 ID，不用加 # 号
+                        count: res.data.totalElements, //数据总数，从服务端得到
+                        limit: mPageSize,
+                        curr: pageNo,
+                        prev: "<",
+                        next: ">",
+                        groups: 2,
+                        limits: [10, 30, 50, 100],
+                        layout: ['prev', 'page', 'next', 'limit', 'refresh', 'skip'],
+                        skip: true, //是否开启跳页
+                        jump: function (obj, isfirst) {
+                            if (!isfirst) {
+                                mPageSize = obj.limit;
+                                getBills(obj.curr, obj.limit)
+                            }
+                        }
+                    });
+                });
+            } else {
+                layer.msg(res.msg);
+            }
+        });
+    }
+    function fillTable(budgets, beginIndex) {
+        var html = "";
+        $.each(budgets, function (index, item) {
+            html += '<tr>' +
+                '            <td>' + (index + 1 + beginIndex) + '</td>' +
+                '            <td>' + item.title + '</td>' +
+                '            <td>' + parseFloat(item.money).toFixed(2) + '</td>' +
+                '            <td>' + item.payway.name + '</td>' +
+                '            <td class="remark" title=' + item.remark + '>' + item.remark + '</td>' +
+                '            <td>' + item.time + '</td>' +
+                '            <td style="display: none">' + item.id + '</td>' +
+                '            <td style="display: none">' + item.payway.id + '</td>' +
+                '            <td class="td-manage">' +
+                '                <a title="Edit" onclick="x_admin_show(\'Edit\',\'income_add.html?index=' + (index + 1) + '#2\',\'460px\',\'80%\')" href="javascript:;">' +
+                '                    <i class="layui-icon">&#xe642;</i>' +
+                '                </a>' +
+                '                <a title="Delete" onclick="del(this,' + item.id + ')" href="javascript:;">' +
+                '                    <i class="layui-icon">&#xe640;</i>' +
+                '                </a>' +
+                '            </td>'
+            '        </tr>';
+        })
+        $("#bills tbody").html(html);
+    }
+
+    ///alert
+    var size=$("#alert")
+    if (url.indexOf("#2")!=-1){
+        $("button[lay-filter=update]").css("display","block");
+        var index = getQueryString("index");
+        initForm(parent.document.getElementsByTagName("tr")[index]);
+    }else {
+        $("button[lay-filter=add]").css("display","block");
+    }
+
+    $(function(){
+        $("#alert").textScroll();//aaa为最外层div的Id  也可写Class  如：$(".aaa") 此处aaa为class名
+    });
+
+    $.fn.textScroll=function(){
+        var p = $(this),  c = p.children(), speed=1000; //值越大速度越小
+        var cw = c.width(),pw=p.width();
+        var t = (cw / 100) * speed;
+        var f = null, t1 = 0;
+        function ani(tm) {
+            counttime();
+            c.animate({ left: -cw }, tm, "linear", function () {  c.css({ left: pw });  clearInterval(f);  t1 = 0;  t=((cw+pw)/100)*speed;  ani(t);
+            });
+        }
+        function counttime() {
+            f = setInterval(function () {
+                t1 += 10;  }, 10);
+        }
+        p.on({  mouseenter: function () {
+                c.stop(false, false);
+                clearInterval(f);
+                console.log(t1);
+            },  mouseleave: function () {
+                ani(t - t1);
+                console.log(t1);
+            }  });
+        ani(t);  }
+</script>
+</html>

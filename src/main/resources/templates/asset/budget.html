@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Budget Details</title>
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport"
+          content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8"/>
+    <link rel="stylesheet" href="/static/css/font.css">
+    <link rel="stylesheet" href="/static/css/xadmin.css">
+    <script type="text/javascript" src="/static/js/index.js"></script>
+    <script type="text/javascript" src="/static/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/static/lib/layui/layui.js" charset="utf-8"></script>
+    <script type="text/javascript" src="/static/js/xadmin.js"></script>
+    <style>
+        table {
+            table-layout: fixed;
+        }
+
+        table td.remark {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        table td, table th {
+            text-align: center !important;
+        }
+
+        .layui-laypage button {
+            background: #009688;
+            color: white;
+            border: 1px #009688 solid;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="x-nav">
+      <span class="layui-breadcrumb">
+        <a href="index">Dashboard</a>
+        <a href="">Budget Details</a>
+        <a>
+          <cite>payment method</cite></a>
+      </span>
+    <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right"
+       href="javascript:location.reload();" title="refresh">
+        <i class="layui-icon" style="line-height:30px">ဂ</i></a>
+</div>
+<div class="x-body">
+    <div class="layui-row">
+        <form class="layui-form layui-col-md12 x-so">
+            <input type="text" placeholder="payment method" id="title" name="title" autocomplete="off" class="layui-input">
+            <input type="text" placeholder="description" id="type" name="type" autocomplete="off" class="layui-input">
+
+            <input class="layui-input" placeholder="begin data" id="start" autocomplete="off">
+            <input class="layui-input" placeholder="end date" id="end" autocomplete="off">
+            <button class="layui-btn" type="button" lay-submit="" lay-filter="search" onclick="getBudgets()">
+                <i class="layui-icon">&#xe615;</i>search
+            </button>
+            <button class="layui-btn layui-btn-primary" type="reset">
+                <i class="layui-icon">&#xe640;</i>reset
+            </button>
+        </form>
+    </div>
+    <button class="layui-btn" onclick="x_admin_show('Creat New Budget','asset_addBudget.html','460px','80%')"><i class="layui-icon"></i>create
+        <xblock></xblock>
+    </button>
+    <span class="x-right" style="line-height:40px">Total：<span id="num"></span> items</span>
+    </xblock>
+    <table class="layui-table" id="bills">
+        <thead>
+        <tr>
+            <th style="width: 6%;">No</th>
+            <th style="width: 15%;">Name</th>
+            <th style="width: 15%;">Type</th>
+            <th style="width: 15%;">Budget</th>
+            <th style="width: 10%;">Overrun</th>
+            <!--<th>备注</th>-->
+            <th style="width: 10%;">operation</th>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div id="pager" style="text-align: center;"></div>
+
+</div>
+<script>
+    getPaymentTypes();
+    mPageSize = 10;
+    $(function () {
+        layer = layui.layer;
+        layui.use('laydate', function () {
+            var laydate = layui.laydate;
+            //执行一个laydate实例
+            laydate.render({
+                elem: '#start', //指定元素
+                max: 0
+            });
+            laydate.render({
+                elem: '#end', //指定元素
+                max: 0
+            });
+        });
+        getBudgets();
+    });
+
+
+    function getBudgets(pageNo) {
+        pageNo = pageNo || 1;
+        var budget = {
+            "name": $("#title").val(),
+            "type": $("#type").val(),
+        }
+        // console.log(bill);
+        $.post("/budgets/getBudgets/" + pageNo + "/" + mPageSize, budget, function (res) {
+            // console.log(res);
+            if (res.code == 200) {
+                if (res.data.totalElements == 0) {
+                    layer.msg(res.msg);
+                }
+                $("#num").text(res.data.totalElements);
+                fillTable(res.data.content, (pageNo - 1) * mPageSize);
+                layui.use('laypage', function () {
+                    var laypage = layui.laypage;
+
+                    //执行一个laypage实例
+                    laypage.render({
+                        elem: 'pager', //注意，这里的 test1 是 ID，不用加 # 号
+                        count: res.data.totalElements, //数据总数，从服务端得到
+                        limit: mPageSize,
+                        curr: pageNo,
+                        prev: "<",
+                        next: ">",
+                        groups: 2,
+                        limits: [10, 30, 50, 100],
+                        layout: ['prev', 'page', 'next', 'limit', 'refresh', 'skip'],
+                        skip: true, //是否开启跳页
+                        jump: function (obj, isfirst) {
+                            if (!isfirst) {
+                                mPageSize = obj.limit;
+                                getBudgets(obj.curr, obj.limit)
+                            }
+                        }
+                    });
+                });
+            } else {
+                layer.msg(res.msg);
+            }
+        });
+    }
+
+    function fillTable(bills, beginIndex) {
+        var html = "";
+        $.each(bills, function (index, item) {
+            var type=item.type=="1"? "Percentage":"Amount";
+            var status=item.status==1?"Yes":"No"
+
+            html += '<tr>' +
+                '            <td>' + (index + 1 + beginIndex) + '</td>' +
+                '            <td>' + item.recordTitle.title + '</td>' +
+                '            <td>' + type + '</td>' +
+                '            <td>' + item.budget + '</td>' +
+                '            <td>' + status + '</td>' +
+                '            <td style="display: none">' + item.id + '</td>' +
+                '            <td class="td-manage">' +
+                '                <a title="Edit" onclick="x_admin_show(\'Edit\',\'asset_addBudget.html?index=' + (index + 1) + '#2\',\'460px\',\'80%\')" href="javascript:;">' +
+                '                    <i class="layui-icon">&#xe642;</i>' +
+                '                </a>' +
+                '                <a title="Delete" onclick="del(this,' + item.id + ')" href="javascript:;">' +
+                '                    <i class="layui-icon">&#xe640;</i>' +
+                '                </a>' +
+                '            </td>'
+            '        </tr>';
+        })
+        $("#bills tbody").html(html);
+    }
+
+    /*删除*/
+    function del(obj, id) {
+        layer.confirm('Confirm delete？', {title: false, closeBtn: false, skin: 'layui-layer-molv'}, function (index) {
+            var data = {"id": id}
+            $.post("/bills/delPayway", data, function (res) {
+                if (res.code == 200) {
+                    getBudgets();
+                    layer.msg('Delete successfully!', {icon: 1, time: 1000});
+                } else {
+                    layer.msg("Delete failed！", {icon: 2, time: 1000});
+                }
+            });
+
+        });
+    }
+</script>
+</body>
+
+</html>

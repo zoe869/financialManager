@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>本月详情</title>
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport"
+          content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8"/>
+
+    <link rel="stylesheet" href="/static/css/font.css">
+    <link rel="stylesheet" href="/static/css/xadmin.css">
+    <script type="text/javascript" src="/static/js/index.js"></script>
+    <script type="text/javascript" src="/static/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/static/lib/layui/layui.js" charset="utf-8"></script>
+    <script type="text/javascript" src="/static/js/xadmin.js"></script>
+    <style>
+        table {
+            table-layout: fixed;
+        }
+
+        table td.remark {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        table td, table th {
+            text-align: center !important;
+        }
+
+        .layui-laypage button {
+            background: #009688;
+            color: white;
+            border: 1px #009688 solid;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="x-nav">
+
+</div>
+<div class="x-body">
+
+    <table class="layui-table" id="bills">
+        <thead>
+        <tr>
+        <th style="width: 6%;">No</th>
+        <th style="width: 15%;">Title</th>
+        <th style="width: 10%;">Fullname</th>
+        <th style="width: 10%;">Amount(€)</th>
+        <th style="width: 12%;">Payment Method</th>
+        <th style="width: 10%;">remark</th>
+        <th style="width: 18%;">Create_time</th>
+        <!--<th style="width: 10%;">操作</th>-->
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div id="pager" style="text-align: center;"></div>
+
+</div>
+<script>
+    getAllPayways();
+    getIncomeTypes();
+    mPageSize = 10;
+    $(function () {
+        layer = layui.layer;
+        layui.use('laydate', function () {
+            var laydate = layui.laydate;
+            //执行一个laydate实例
+            laydate.render({
+                elem: '#start', //指定元素
+                max: 0
+            });
+            laydate.render({
+                elem: '#end', //指定元素
+                max: 0
+            });
+        });
+        getBills();
+        // getBills2();
+    });
+
+
+    function getBills(pageNo) {
+        pageNo = pageNo || 1;
+        var bill = {
+            "startTime": $("#start").val(),
+            "endTime": $("#end").val(),
+            "realname": $("#realname").val(),
+            "title": $("#title").val(),
+            "paywayid": $("#payway").val() == -1 ? null : $("#payway").val(),
+            "remark": $("#remark").val(),
+        }
+        // console.log(bill);
+        $.post("/bills/getBillsByWhere/2/" + pageNo + "/" + mPageSize, bill, function (res) {
+            // console.log(res);
+            if (res.code == 200) {
+                if (res.data.totalElements == 0) {
+                    layer.msg(res.msg);
+                }
+                $("#num").text(res.data.totalElements);
+                fillTable(res.data.content, (pageNo - 1) * mPageSize);
+                layui.use('laypage', function () {
+                    var laypage = layui.laypage;
+
+                    //执行一个laypage实例
+                    laypage.render({
+                        elem: 'pager', //注意，这里的 test1 是 ID，不用加 # 号
+                        count: res.data.totalElements, //数据总数，从服务端得到
+                        limit: mPageSize,
+                        curr: pageNo,
+                        prev: "<",
+                        next: ">",
+                        groups: 2,
+                        limits: [10, 30, 50, 100],
+                        layout: ['prev', 'page', 'next', 'limit', 'refresh', 'skip'],
+                        skip: true, //是否开启跳页
+                        jump: function (obj, isfirst) {
+                            if (!isfirst) {
+                                mPageSize = obj.limit;
+                                getBills(obj.curr, obj.limit)
+                            }
+                        }
+                    });
+                });
+            } else {
+                layer.msg(res.msg);
+            }
+        });
+    }
+
+    function fillTable(bills, beginIndex) {
+        var html = "";
+        $.each(bills, function (index, item) {
+            html += '<tr>' +
+                '            <td>' + (index + 1 + beginIndex) + '</td>' +
+                '            <td>' + item.title + '</td>' +
+                '            <td>' + item.userInfo.realname + '</td>' +
+                '            <td>' + parseFloat(item.money).toFixed(2) + '</td>' +
+                '            <td>' + item.payway.name + '</td>' +
+                '            <td class="remark" title=' + item.remark + '>' + item.remark + '</td>' +
+                '            <td>' + item.time + '</td>' +
+                '            <td style="display: none">' + item.id + '</td>' +
+                '            </tr>';
+        })
+        $("#bills tbody").html(html);
+    }
+
+    function dateFormat(fmt, date) {
+        let ret;
+        const opt = {
+            "Y+": date.getFullYear().toString(),        // 年
+            "m+": (date.getMonth() + 1).toString(),     // 月
+            "d+": date.getDate().toString(),            // 日
+            "H+": date.getHours().toString(),           // 时
+            "M+": date.getMinutes().toString(),         // 分
+            "S+": date.getSeconds().toString()          // 秒
+            // 有其他格式化字符需求可以继续添加，必须转化成字符串
+        };
+        for (let k in opt) {
+            ret = new RegExp("(" + k + ")").exec(fmt);
+            if (ret) {
+                fmt = fmt.replace(ret[1], (ret[1].length == 1) ? (opt[k]) : (opt[k].padStart(ret[1].length, "0")))
+            };
+        };
+        return fmt;
+    }
+
+    // function getBills2(pageNo) {
+    //     pageNo = pageNo || 1;
+    //     var date=new Date(),y = date.getFullYear(),m=date.getMonth();
+    //     var firstDay = dateFormat("YYYY-mm-dd",new Date(y,m,1));
+    //     var lastDay = dateFormat("YYYY-mm-dd",new Date(y,m+1,0));
+    //     var bill = {
+    //         "startTime": firstDay,
+    //         "endTime": lastDay,
+    //         "realname": $("#realname").val(),
+    //         "title": $("#title").val(),
+    //         "paywayid": $("#payway").val() == -1 ? null : $("#payway").val(),
+    //         "remark": $("#remark").val(),
+    //     }
+    //     var resData;
+    //     layui.use('table', function () {
+    //         var table = layui.table;
+    //
+    //         table.render({
+    //             elem: '#bills',
+    //             url: "/bills/getBillsByWhere/2/" + pageNo + "/" + mPageSize,
+    //             method: 'post',
+    //             where: bill,
+    //             // toolbar: true,
+    //             title: '用户数据表',
+    //             // totalRow: true,
+    //             cols: [
+    //                 [
+    //                     {type:'numbers',title: '序号'},
+    //                     {field: 'title', title: '标题',},
+    //                     {field: 'realname', title: '姓名',},
+    //                     {field: 'money', title: '金额(€)', sort: true,},
+    //                     {field: 'payway', title: '收入方式', sort: true},
+    //                     {field: 'remark', title: '备注', sort: true,},
+    //                     {field: 'time', title: '时间'},
+    //                     {fixed: 'right', title:'操作', toolbar: '#barDemo', width:100}
+    //                 ]
+    //             ],
+    //             // page: {
+    //             //     // elem: 'pager', //注意，这里的 test1 是 ID，不用加 # 号
+    //             //     // count: res.total, //数据总数，从服务端得到
+    //             //     limit: mPageSize,
+    //             //     curr: pageNo,
+    //             //     prev: "<",
+    //             //     next: ">",
+    //             //     groups: 2,
+    //             //     limits: [10, 30, 50, 100],
+    //             //     layout: ['prev', 'page', 'next', 'limit', 'refresh', 'skip'],
+    //             //     skip: true, //是否开启跳页
+    //             //     jump: function (obj, isfirst) {
+    //             //         console.log(obj);
+    //             //         if (!isfirst) {
+    //             //             mPageSize = obj.limit;
+    //             //             getBills2(obj.curr, obj.limit)
+    //             //         }
+    //             //     }
+    //             // },
+    //             response: {
+    //                 statusCode: 200 //重新规定成功的状态码为 200，table 组件默认为 0
+    //             },
+    //             parseData: function (res) { //将原始数据解析成 table 组件所规定的数据
+    //                 layui.use('laypage', function () {
+    //                     var laypage = layui.laypage;
+    //
+    //                     //执行一个laypage实例
+    //                     laypage.render({
+    //                         elem: 'pager', //注意，这里的 test1 是 ID，不用加 # 号
+    //                         count: res.total, //数据总数，从服务端得到
+    //                         limit: mPageSize,
+    //                         curr: pageNo,
+    //                         prev: "<",
+    //                         next: ">",
+    //                         groups: 2,
+    //                         limits: [10, 30, 50, 100],
+    //                         layout: ['prev', 'page', 'next', 'limit', 'refresh', 'skip'],
+    //                         skip: true, //是否开启跳页
+    //                         jump: function (obj, isfirst) {
+    //                             if (!isfirst) {
+    //                                 mPageSize = obj.limit;
+    //                                 getBills2(obj.curr, obj.limit)
+    //                             }
+    //                         }
+    //                     });
+    //                 });
+    //                 return {
+    //                     "code": res.code, //解析接口状态
+    //                     "msg": res.msg, //解析提示文本
+    //                     "count": res.total, //解析数据长度
+    //                     "data": res.datas //解析数据列表
+    //                 };
+    //             }
+    //         });
+    //     });
+    // }
+
+    /*删除*/
+    function del(obj, id) {
+        layer.confirm('Confirm delete？', {title: false, closeBtn: false, skin: 'layui-layer-molv'}, function (index) {
+            var data = {"id": id}
+            $.post("/bills/delBill", data, function (res) {
+                if (res.code == 200) {
+                    getBills();
+                    layer.msg('Delete successfully!', {icon: 1, time: 1000});
+                } else {
+                    layer.msg("Delete failed！", {icon: 2, time: 1000});
+                }
+            });
+
+        });
+    }
+</script>
+</body>
+
+</html>

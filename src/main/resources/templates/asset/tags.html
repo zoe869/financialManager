@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Tag Management</title>
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport"
+          content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8"/>
+    <link rel="stylesheet" href="/static/css/font.css">
+    <link rel="stylesheet" href="/static/css/xadmin.css">
+    <script type="text/javascript" src="/static/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/static/lib/layui/layui.js" charset="utf-8"></script>
+    <script type="text/javascript" src="/static/js/xadmin.js"></script>
+    <script type="text/javascript" src="/static/js/index.js"></script>
+    <style>
+        table {
+            table-layout: fixed;
+        }
+
+        table td.remark {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        table td, table th {
+            text-align: center !important;
+        }
+
+        .layui-laypage button {
+            background: #009688;
+            color: white;
+            border: 1px #009688 solid;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="x-nav">
+      <span class="layui-breadcrumb">
+        <a href="index">Dashboard</a>
+        <a href="index">Setting</a>
+        <a>
+          <cite>Tag Details</cite></a>
+      </span>
+    <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right"
+       href="javascript:location.reload();" title="refresh">
+        <i class="layui-icon" style="line-height:30px">ဂ</i></a>
+</div>
+<div class="x-body">
+    <div class="layui-row">
+        </blockquote>
+        <form class="layui-form layui-col-md12 x-so">
+            <div class="layui-form-item" lay-filter="tag-form">
+                <label class="layui-form-label">Tag Name</label>
+                <div class="layui-input-block">
+                    <input type="text" id="title" name="title" placeholder="Please input the tag name" autocomplete="off" class="layui-input">
+                </div>
+            </div>
+
+            <div class="layui-form-item">
+                <label class="layui-form-label">Tag Type</label>
+                <div class="layui-input-block">
+                    <select id="type" name="type" >
+                        <option value="-1">Select</option>
+                        <option value="1">Payment</option>
+                        <option value="2">Income</option>
+                    </select>
+                </div>
+            </div>
+            <button class="layui-btn" type="button" lay-submit="" lay-filter="search" onclick="getTags()">
+                <i class="layui-icon">&#xe615;</i>Search
+            </button>
+            <button class="layui-btn layui-btn-primary" type="reset">
+                <i class="layui-icon">&#xe640;</i>Reset
+            </button>
+        </form>
+    </div>
+    <xblock>
+    <button class="layui-btn" onclick="x_admin_show('Create new Tag','asset_add.html','460px','80%')"><i class="layui-icon"></i>create
+    </button>
+    <span class="x-right" style="line-height:40px">Total：<span id="num"></span> items</span>
+    </xblock>
+    <table class="layui-table" id="tags">
+        <thead>
+        <tr>
+        <th style="width: 6%;">No</th>
+        <th style="width: 15%;">Tag</th>
+        <th style="width: 10%;">Tag Type</th>
+        <th style="width: 10%;">Operation</th>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+    <div id="pager" style="text-align: center;"></div>
+
+</div>
+<script>
+    mPageSize = 10;
+    $(function () {
+        layer = layui.layer;
+        layui.use('laydate', function () {
+            var laydate = layui.laydate;
+            //执行一个laydate实例
+            laydate.render({
+                elem: '#start', //指定元素
+                max: 0
+            });
+            laydate.render({
+                elem: '#end', //指定元素
+                max: 0
+            });
+        });
+        getTags();
+    });
+
+    function getTags(pageNo) {
+
+        pageNo = pageNo || 1;
+
+        var tag = {
+            "title": $("#title").val(),
+            "type": $("#type").val()
+        }
+
+        $.post("/bills/getTagsByWhere/" + pageNo + "/" + mPageSize,tag, function (res) {
+            // console.log(res);
+            if (res.code == 200) {
+                if (res.data.totalElements == 0) {
+                    layer.msg(res.msg);
+                }
+                $("#num").text(res.data.totalElements);
+                fillTable(res.data.content, (pageNo - 1) * mPageSize);
+                layui.use('laypage', function () {
+                    var laypage = layui.laypage;
+
+                    //执行一个laypage实例
+                    laypage.render({
+                        elem: 'pager', //注意，这里的 test1 是 ID，不用加 # 号
+                        count: res.data.totalElements, //数据总数，从服务端得到
+                        limit: mPageSize,
+                        curr: pageNo,
+                        prev: "<",
+                        next: ">",
+                        groups: 2,
+                        limits: [10, 30, 50, 100],
+                        layout: ['prev', 'page', 'next', 'limit', 'refresh', 'skip'],
+                        skip: true, //是否开启跳页
+                        jump: function (obj, isfirst) {
+                            if (!isfirst) {
+                                mPageSize = obj.limit;
+                                getTags(obj.curr, obj.limit)
+                            }
+                        }
+                    });
+                });
+            } else {
+                layer.msg(res.msg);
+            }
+        });
+    }
+
+    function fillTable(tags, beginIndex) {
+        var html = "";
+        $.each(tags, function (index, item) {
+
+            var type= (item.type=="1"?"Payment":"Income");
+
+            html += '<tr>' +
+                '            <td>' + (index + 1 + beginIndex) + '</td>' +
+                '            <td>' + item.title + '</td>' +
+                '            <td>' + type + '</td>' +
+                '            <td style="display: none">' + item.type + '</td>' +
+                '            <td style="display: none">' + item.id + '</td>' +
+                '            <td class="td-manage">' +
+                // '                <a title="Edit" onclick="x_admin_show(\'Edit\',\'asset_addTag.html?index=' + (index + 1) + '#2\',\'460px\',\'80%\')" href="javascript:;">' +
+                // '                    <i class="layui-icon">&#xe642;</i>' +
+                // '                </a>' +
+                '                <a title="Delete" onclick="del(this,' + item.id + ')" href="javascript:;">' +
+                '                    <i class="layui-icon">&#xe640;</i>' +
+                '                </a>' +
+                '            </td>'
+                '        </tr>';
+        })
+        $("#tags tbody").html(html);
+    }
+
+
+    /*删除*/
+    function del(obj, id) {
+        layer.confirm('Confirm delete？', {title: false, closeBtn: false, skin: 'layui-layer-molv'}, function (index) {
+            var data = {"id": id}
+            $.post("/bills/delTag", data, function (res) {
+                if (res.code == 200) {
+                    getTags();
+                    layer.msg('Delete successfully!', {icon: 1, time: 1000});
+                } else {
+                    layer.msg("Delete failed！", {icon: 2, time: 1000});
+                }
+            });
+
+        });
+    }
+</script>
+</body>
+
+</html>

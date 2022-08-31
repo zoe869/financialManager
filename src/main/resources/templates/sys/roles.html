@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>Role Details</title>
+    <meta name="renderer" content="webkit">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <meta name="viewport"
+          content="width=device-width,user-scalable=yes, minimum-scale=0.4, initial-scale=0.8"/>
+
+    <link rel="stylesheet" href="/static/css/font.css">
+    <link rel="stylesheet" href="/static/css/xadmin.css">
+    <script type="text/javascript" src="/static/js/index.js"></script>
+    <script type="text/javascript" src="/static/js/jquery.min.js"></script>
+    <script type="text/javascript" src="/static/lib/layui/layui.js" charset="utf-8"></script>
+    <script type="text/javascript" src="/static/js/xadmin.js"></script>
+
+
+    <style>
+        table {
+            table-layout: fixed;
+        }
+
+        table td.remark {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        table td, table th {
+            text-align: center !important;
+        }
+
+        .layui-laypage button {
+            background: #009688;
+            color: white;
+            border: 1px #009688 solid;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+
+<body>
+<div class="x-nav">
+      <span class="layui-breadcrumb">
+        <a href="index">Dashboard</a>
+        <a href="javascript:;">system management</a>
+        <a>
+          <cite>Role management</cite></a>
+      </span>
+    <a class="layui-btn layui-btn-small" style="line-height:1.6em;margin-top:3px;float:right"
+       href="javascript:location.reload();" title="refresh">
+        <i class="layui-icon" style="line-height:30px">ဂ</i></a>
+</div>
+<div class="x-body">
+    <xblock>
+        <button class="layui-btn" onclick="x_admin_show('Create new role','sys_roleadd.html','460px','80%')"><i class="layui-icon"></i>create
+        </button>
+    </xblock>
+    <table class="layui-table" id="roles">
+        <thead>
+        <tr>
+            <th style="width: 6%;">No</th>
+            <th style="width: 10%;">Role name</th>
+            <th style="width: 10%;">operation</th>
+        </thead>
+        <tbody></tbody>
+    </table>
+
+</div>
+<script>
+    //tree 的使用
+    layui.use(['tree', 'util'], function(){
+        var tree = layui.tree
+            ,layer = layui.layer
+            ,util = layui.util
+
+        $.get("/getAllPrivilege/1",function (res) {
+            console.log(res);
+            if (res != ''){
+                s=',' + res + ',';//前后加限定符
+                var cb = document.getElementsByName('id[]');//这里改你checkbox的name值
+                for (var i = 0; i < cb.length; i++){
+                    if (s.indexOf( cb[i].value ) != -1) {
+                        cb[i].checked = true;
+                    }
+                }
+            }
+        });
+        // $.ajax({//http://localhost:8003/getAllPrivilege/1
+        //     'url':'/getAllPrivilege/',
+        //     'type':'get',
+        //     success:function(res){
+        //
+        //         tree.render({
+        //             elem: '#test7'
+        //             ,data: res
+        //             // ,showLine: false  //是否开启连接线
+        //             ,edit: ['add', 'update', 'del'] //操作节点的图标
+        //             ,click: function(obj){
+        //                 layer.msg(JSON.stringify(obj.data.name));
+        //             }
+        //             ,operate: function(obj){
+        //                 var type = obj.type; //得到操作类型：add、edit、del
+        //                 var data = obj.data; //得到当前节点的数据
+        //                 var elem = obj.elem; //得到当前节点元素
+        //
+        //                 //Ajax 操作
+        //                 var id = data.id; //得到节点索引
+        //                 if(type === 'add'){ //增加节点
+        //                     //返回 key 值
+        //                     console.log('add')
+        //                 } else if(type === 'update'){ //修改节点
+        //                     console.log(elem.find('.layui-tree-txt').html()); //得到修改后的内容
+        //                 } else if(type === 'del'){ //删除节点
+        //                     console.log('del');
+        //                 };
+        //             }
+        //         });
+        //     }
+        // })
+
+    });
+
+    $(function () {
+        layer = layui.layer;
+        if(parent.sessionUser.roleid == 2){
+            $(".layui-breadcrumb :nth-child(2)").text("Family member management");
+            $(".layui-breadcrumb :nth-child(3) cite").text("Family member");
+        }
+        getRoles();
+    });
+
+    function getRoles() {
+        $.post("/getAllRoles", function (res) {
+            console.log(res);
+            if (res.code == 200) {
+                fillTable(res.datas);
+            } else {
+                layer.msg(res.msg);
+            }
+        });
+    }
+
+    function fillTable(roles) {
+        console.log(roles);
+        var html = "";
+        $.each(roles, function (index, item) {
+            html += '<tr>' +
+                '            <td>' + (index + 1) + '</td>' +
+                '            <td>' + item.rolename + '</td>' +
+                '            <td style="display: none">' + item.roleid + '</td>' +
+                '            <td class="td-manage">' +
+                '                <a title="Edit" onclick="x_admin_show(\'Edit\',\'sys_roleadd.html?index='+(index+1)+'#2\',\'460px\',\'80%\')" href="javascript:;">' +
+                '                    <i class="layui-icon">&#xe642;</i>' +
+                '                </a>' +
+                '                <a title="Delete" onclick="del(this,' + item.roleid + ')" href="javascript:;">' +
+                '                    <i class="layui-icon">&#xe640;</i>' +
+                '                </a>' +
+                '            </td>' +
+                '        </tr>';
+        })
+        $("#roles tbody").html(html);
+    }
+
+
+
+
+    /*删除*/
+    function del(obj, id) {
+        layer.confirm('Confirm delete？',{title: false, closeBtn: false, skin: 'layui-layer-molv'}, function (index) {
+            $.post("/role/del/"+id, function (res) {
+                if (res.code == 200) {
+                    getRoles();
+                    layer.msg('Delete successfully!', {icon: 1, time: 1000});
+                } else {
+                    layer.msg("Delete failed！", {icon: 2, time: 1000});
+                }
+            });
+
+        });
+    }
+</script>
+</body>
+
+</html>
